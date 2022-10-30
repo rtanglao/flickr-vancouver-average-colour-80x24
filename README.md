@@ -1,0 +1,1 @@
+# flickr-vancouver-average-colour-80x24
