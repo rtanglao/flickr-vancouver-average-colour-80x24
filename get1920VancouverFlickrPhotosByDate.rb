@@ -47,7 +47,7 @@ if ARGV.length < 3
 end
 
 tz = TZInfo::Timezone.get('America/Vancouver')
-BEGIN_TIME = tz.local_time(ARGV[0].to_i, ARGV[1].to_i, ARGV[2].to_i, 0, 0)
+BEGIN_TIME = Time.at(tz.local_time(ARGV[0].to_i, ARGV[1].to_i, ARGV[2].to_i, 0, 0).to_i) -(8 * 3600)
 END_TIME = tz.local_time(ARGV[0].to_i, ARGV[1].to_i, ARGV[2].to_i, 23, 59)
 logger.debug "BEGIN: #{BEGIN_TIME.ai}"
 logger.debug "END: #{END_TIME.ai}"
@@ -62,6 +62,8 @@ first_page = true
 photos_per_page = 0
 number_of_pages = 0
 csv_array = []
+logger.debug BEGIN_TIME.strftime("%Y-%m-%d %H:%M:%S")
+logger.debug END_TIME.strftime("%Y-%m-%d %H:%M:%S")
 1.step(by: 1) do |page|
   logger.debug "page:#{page}"
   url_params =
@@ -80,8 +82,9 @@ csv_array = []
       lat: "49.283166",
       lon: "-123.109331",
       radius: "15.0",
-      min_taken_date: BEGIN_TIME.to_i.to_s,
-      max_taken_date: END_TIME.to_i.to_s
+      # Looks like unix time support is broken so use mysql time
+      min_taken_date: BEGIN_TIME.strftime("%Y-%m-%d %H:%M:%S"),
+      max_taken_date: END_TIME.strftime("%Y-%m-%d %H:%M:%S")
     }
   photos_on_this_page = get_flickr_response(flickr_url, url_params, logger)
   if first_page
