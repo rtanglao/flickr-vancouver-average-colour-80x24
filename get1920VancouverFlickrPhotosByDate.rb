@@ -76,6 +76,10 @@ csv_array = []
       extras: extras_str,
       sort: 'date-taken-asc',
       page: page.to_s,
+      # 15km radius from revolver :-)
+      lat: "49.283166",
+      lon: "-123.109331",
+      radius: "15.0",
       min_taken_date: BEGIN_TIME.to_i.to_s,
       max_taken_date: END_TIME.to_i.to_s
     }
