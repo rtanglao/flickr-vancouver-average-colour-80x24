@@ -60,7 +60,7 @@ extras_str = 'description, license, date_upload, date_taken, owner_name, icon_se
 flickr_url = 'services/rest/'
 first_page = true
 photos_per_page = 0
-photos_to_retrieve = 0
+number_of_pages = 0
 csv_array = []
 1.step(by: 1) do |page|
   logger.debug "page:#{page}"
@@ -84,12 +84,10 @@ csv_array = []
     first_page = false
     photos_per_page = photos_on_this_page['photos']['perpage'].to_i
     logger.debug "photos_per_page: #{photos_per_page}"
-    photos_to_retrieve = photos_on_this_page['photos']['total'].to_i - photos_per_page
+    number_of_pages = photos_on_this_page['photos']['pages'].to_i
   else
     logger.debug "photos_per_page: #{photos_per_page}"
-    photos_to_retrieve -= photos_per_page
   end
-  logger.debug "photos_to_retrieve:#{photos_to_retrieve}"
   logger.debug "STATUS from flickr API:#{photos_on_this_page['stat']} retrieved page:\
   #{photos_on_this_page['photos']['page'].to_i} of:\
   #{photos_on_this_page['photos']['pages'].to_i}"
@@ -100,9 +98,14 @@ csv_array = []
     photo_without_nested_stuff = photo.except('description')
     csv_array.push(photo_without_nested_stuff)
   end
-  break if page == photos_on_this_page['photos']['pages']
+  break if page == number_of_pages # photos_on_this_page['photos']['pages']
+  sleep 2
 end
 headers = csv_array[0].keys
+logger.debug "number of photos: #{csv_array.length}"
+logger.debug "FIRST photo: #{csv_array[0].ai}"
+logger.debug "LAST photo: #{csv_array[-1].ai}"
+
 FILENAME = format('%<yyyy>4.4d-%<mm>2.2d-%<dd>2.2d-has_geo-flickr-metadata.csv',
                   yyyy: ARGV[0].to_i, mm: ARGV[1].to_i, dd: ARGV[2].to_i)
 CSV.open(FILENAME, 'w', write_headers: true, headers: headers) do |csv_object|
