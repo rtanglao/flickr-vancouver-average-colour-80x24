@@ -11,6 +11,7 @@ require 'logger'
 require 'io/console'
 require 'tzinfo'
 require 'parseconfig'
+require 'fileutils'
 
 def get_flickr_response(url, params, _logger)
   url = 'https://api.flickr.com/' + url
@@ -115,15 +116,17 @@ logger.debug "end_mysql_time:#{end_mysql_time}"
     end
   end
   break if page == number_of_pages # photos_on_this_page['photos']['pages']
+
   sleep 2
 end
 headers = csv_array[0].keys
 logger.debug "number of photos: #{csv_array.length}"
 logger.debug "FIRST photo: #{csv_array[0].ai}"
 logger.debug "LAST photo: #{csv_array[-1].ai}"
-
-FILENAME = format('%<yyyy>4.4d-%<mm>2.2d-%<dd>2.2d-has_geo-flickr-metadata.csv',
-                  yyyy: ARGV[0].to_i, mm: ARGV[1].to_i, dd: ARGV[2].to_i)
+FILENAME = format('%<path>s/%<yyyy>4.4d/%<mm>2.2d/%<dd>2.2d/%<yyyy>4.4d-%<mm>2.2d-%<dd>2.2d-vancouver_geo-flickr-metadata.csv',
+                  path: Dir.pwd, yyyy: ARGV[0].to_i, mm: ARGV[1].to_i, dd: ARGV[2].to_i, yyyy: ARGV[0].to_i, mm: ARGV[1].to_i, dd: ARGV[2].to_i)
+logger.debug "filename:#{FILENAME}"
+rc = FileUtils.mkdir_p(File.dirname(FILENAME))
 CSV.open(FILENAME, 'w', write_headers: true, headers: headers) do |csv_object|
   csv_array.each { |row_array| csv_object << row_array }
 end
