@@ -47,10 +47,12 @@ if ARGV.length < 3
 end
 
 tz = TZInfo::Timezone.get('America/Vancouver')
-BEGIN_TIME = Time.at(tz.local_time(ARGV[0].to_i, ARGV[1].to_i, ARGV[2].to_i, 0, 0).to_i) -(8 * 3600)
+BEGIN_TIME = tz.local_time(ARGV[0].to_i, ARGV[1].to_i, ARGV[2].to_i, 0, 0)
 END_TIME = tz.local_time(ARGV[0].to_i, ARGV[1].to_i, ARGV[2].to_i, 23, 59)
 logger.debug "BEGIN: #{BEGIN_TIME.ai}"
 logger.debug "END: #{END_TIME.ai}"
+begin_mysql_time = BEGIN_TIME.strftime('%Y-%m-%d %H:%M:%S')
+end_mysql_time = END_TIME.strftime('%Y-%m-%d %H:%M:%S')
 
 extras_str = 'description, license, date_upload, date_taken, owner_name, icon_server,' +
              'original_format, last_update, geo, tags, machine_tags, o_dims, views,' +
@@ -62,8 +64,9 @@ first_page = true
 photos_per_page = 0
 number_of_pages = 0
 csv_array = []
-logger.debug BEGIN_TIME.strftime("%Y-%m-%d %H:%M:%S")
-logger.debug END_TIME.strftime("%Y-%m-%d %H:%M:%S")
+logger.debug "begin_mysql_time:#{begin_mysql_time}"
+logger.debug "end_mysql_time:#{end_mysql_time}"
+
 1.step(by: 1) do |page|
   logger.debug "page:#{page}"
   url_params =
@@ -79,12 +82,12 @@ logger.debug END_TIME.strftime("%Y-%m-%d %H:%M:%S")
       sort: 'date-taken-asc',
       page: page.to_s,
       # 15km radius from revolver :-)
-      lat: "49.283166",
-      lon: "-123.109331",
-      radius: "15.0",
+      lat: '49.283166',
+      lon: '-123.109331',
+      radius: '15.0',
       # Looks like unix time support is broken so use mysql time
-      min_taken_date: BEGIN_TIME.strftime("%Y-%m-%d %H:%M:%S"),
-      max_taken_date: END_TIME.strftime("%Y-%m-%d %H:%M:%S")
+      min_taken_date: begin_mysql_time,
+      max_taken_date: end_mysql_time
     }
   photos_on_this_page = get_flickr_response(flickr_url, url_params, logger)
   if first_page
@@ -99,11 +102,17 @@ logger.debug END_TIME.strftime("%Y-%m-%d %H:%M:%S")
   #{photos_on_this_page['photos']['page'].to_i} of:\
   #{photos_on_this_page['photos']['pages'].to_i}"
   photos_on_this_page['photos']['photo'].each do |photo|
+    date_taken = Time.parse(photo['datetaken'])
+    logger.debug "date_taken:#{date_taken}"
     logger.debug "woeid: #{photo['woeid']}"
     photo['id'] = photo['id'].to_i
     photo['description_content'] = photo['description']['_content']
     photo_without_nested_stuff = photo.except('description')
-    csv_array.push(photo_without_nested_stuff)
+    if date_taken < BEGIN_TIME || date_taken > END_TIME
+      logger.debug "date_taken: #{date_taken} OUT OF BOUNDS discarding photo"
+    else
+      csv_array.push(photo_without_nested_stuff)
+    end
   end
   break if page == number_of_pages # photos_on_this_page['photos']['pages']
   sleep 2
