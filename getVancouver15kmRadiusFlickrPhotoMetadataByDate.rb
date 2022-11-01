@@ -1,4 +1,6 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
+
 require 'rubygems'
 require 'bundler/setup'
 require 'typhoeus'
@@ -14,7 +16,7 @@ require 'parseconfig'
 require 'fileutils'
 
 def get_flickr_response(url, params, _logger)
-  url = 'https://api.flickr.com/' + url
+  url = "https://api.flickr.com/#{url}"
   try_count = 0
   begin
     result = Typhoeus::Request.get(
@@ -22,14 +24,14 @@ def get_flickr_response(url, params, _logger)
       params: params
     )
     x = JSON.parse(result.body)
-  rescue JSON::ParserError => e
+  rescue JSON::ParserError
     try_count += 1
     if try_count < 4
-      $stderr.printf("JSON::ParserError exception, retry:%d\n", try_count)
+      logger.debug "JSON::ParserError exception, retry:#{try_count}"
       sleep(10)
       retry
     else
-      $stderr.printf("JSON::ParserError exception, retrying FAILED\n")
+      logger.debug 'JSON::ParserError exception, retrying FAILED'
       x = nil
     end
   end
@@ -48,17 +50,20 @@ if ARGV.length < 3
 end
 
 tz = TZInfo::Timezone.get('America/Vancouver')
-BEGIN_TIME = tz.local_time(ARGV[0].to_i, ARGV[1].to_i, ARGV[2].to_i, 0, 0)
-END_TIME = tz.local_time(ARGV[0].to_i, ARGV[1].to_i, ARGV[2].to_i, 23, 59)
+yyyy = ARGV[0].to_i
+mm = ARGV[1].to_i
+dd = ARGV[2].to_i
+BEGIN_TIME = tz.local_time(yyyy, mm, dd, 0, 0)
+END_TIME = tz.local_time(yyyy, mm, dd, 23, 59)
 logger.debug "BEGIN: #{BEGIN_TIME.ai}"
 logger.debug "END: #{END_TIME.ai}"
 begin_mysql_time = BEGIN_TIME.strftime('%Y-%m-%d %H:%M:%S')
 end_mysql_time = END_TIME.strftime('%Y-%m-%d %H:%M:%S')
 
-extras_str = 'description, license, date_upload, date_taken, owner_name, icon_server,' +
-             'original_format, last_update, geo, tags, machine_tags, o_dims, views,' +
-             'media, path_alias, url_sq, url_t, url_s, url_m, url_z, url_l, url_o,' +
-             'url_c, url_q, url_n, url_k, url_h, url_b'
+extras_str = 'description, license, date_upload, date_taken, owner_name, icon_server,\
+original_format, last_update, geo, tags, machine_tags, o_dims, views,\
+media, path_alias, url_sq, url_t, url_s, url_m, url_z, url_l, url_o,\
+url_c, url_q, url_n, url_k, url_h, url_b'
 
 flickr_url = 'services/rest/'
 first_page = true
@@ -123,10 +128,14 @@ headers = csv_array[0].keys
 logger.debug "number of photos: #{csv_array.length}"
 logger.debug "FIRST photo: #{csv_array[0].ai}"
 logger.debug "LAST photo: #{csv_array[-1].ai}"
-FILENAME = format('%<path>s/%<yyyy>4.4d/%<mm>2.2d/%<dd>2.2d/%<yyyy>4.4d-%<mm>2.2d-%<dd>2.2d-vancouver_geo-flickr-metadata.csv',
-                  path: Dir.pwd, yyyy: ARGV[0].to_i, mm: ARGV[1].to_i, dd: ARGV[2].to_i, yyyy: ARGV[0].to_i, mm: ARGV[1].to_i, dd: ARGV[2].to_i)
+FILENAME = format(
+  '%<path>s/%<yyyy>4.4d/%<mm>2.2d/%<dd>2.2d/%<yyyy2>4.4d-\
+%<mm>22.2d-%<dd2>2.2d-vancouver_geo-flickr-metadata.csv',
+  path: Dir.pwd, yyyy: yyyy, mm: mm,
+  dd: dd, yyyy2: yyyy, mm2: mm, dd2: dd
+)
 logger.debug "filename:#{FILENAME}"
-rc = FileUtils.mkdir_p(File.dirname(FILENAME))
+FileUtils.mkdir_p(File.dirname(FILENAME))
 CSV.open(FILENAME, 'w', write_headers: true, headers: headers) do |csv_object|
   csv_array.each { |row_array| csv_object << row_array }
 end
